@@ -21,6 +21,9 @@ function RagDoll.new(character: Model)
 			self.Humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
 		elseif instance:IsA("Motor6D") then
 			table.insert(self.motors, instance)
+		elseif instance.Name == "HumanoidRootPart" then
+			self.humanoidRoot = instance
+			self.humanoidRoot.CanCollide = false
 		end
 	end
 
@@ -28,6 +31,20 @@ function RagDoll.new(character: Model)
 		local ballSocket = self:replaceConstraint(motor)
 		table.insert(self.created, ballSocket)
 	end
+
+	self.connection = RunService.Heartbeat:Connect(function(deltaTime)
+		for _, part: BasePart in pairs(character:GetChildren()) do
+			if not part:IsA("BasePart") then
+				continue
+			end
+			if part == self.humanoidRoot then
+				continue
+			end
+			part.CanCollide = true
+		end
+	end)
+
+	self.Humanoid.RequiresNeck = false
 
 	return self
 end
@@ -59,6 +76,8 @@ function RagDoll:replaceConstraint(motor: Motor6D): BallSocketConstraint
 	ballSocketConstraint.TwistLimitsEnabled = true
 
 	motor.Enabled = false
+
+	self.humanoidRoot.CanCollide = true
 	return ballSocketConstraint
 end
 
@@ -79,10 +98,11 @@ function RagDoll:Destroy()
 
 	self.Character:SetAttribute("IsRagDoll", nil)
 
-	local humanoidRoot: BasePart = self.Character:FindFirstChild("HumanoidRootPart")
-	if humanoidRoot then
-		humanoidRoot.CanCollide = true
+	if self.connection ~= nil then
+		self.connection:Disconnect()
+		self.connection = nil
 	end
+	self.Humanoid.RequiresNeck = true
 
 	table.clear(self)
 end
